@@ -1,7 +1,7 @@
-from sqlalchemy import create_engine
 from sqlalchemy.pool import NullPool
-# from sqlalchemy.pool import NullPool
+from sqlalchemy.ext.asyncio import create_async_engine
 from dotenv import load_dotenv
+import asyncio
 import os
 
 # Load environment variables from .env
@@ -21,11 +21,25 @@ DATABASE_URL = f"postgresql+psycopg2://{USER}:{PASSWORD}@{HOST}:{PORT}/{DBNAME}?
 #engine = create_engine(DATABASE_URL)
 # If using Transaction Pooler or Session Pooler, we want to ensure we disable SQLAlchemy client side pooling -
 # https://docs.sqlalchemy.org/en/20/core/pooling.html#switching-pool-implementations
-engine = create_engine(DATABASE_URL, poolclass=NullPool)
+engine = create_async_engine(
+    DATABASE_URL,
+    echo=True,
+    pool_size=5,
+    max_overflow=10,
+    pool_recycle=300,
+    pool_pre_ping=True,
+    # NO uses connect_args con ssl_context
+    # asyncpg maneja sslmode automáticamente
+)
+async def test_connection():
+    try:
+        async with engine.connect() as connection:
+            print("✅ Connection successful!")
+            return True
+    except Exception as e:
+        print(f"❌ Failed to connect: {e}")
+        return False
 
-# Test the connection
-try:
-    with engine.connect() as connection:
-        print("Connection successful!")
-except Exception as e:
-    print(f"Failed to connect: {e}")
+# Para probar en script independiente
+if __name__ == "__main__":
+    asyncio.run(test_connection())
